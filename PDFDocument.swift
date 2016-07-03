@@ -41,11 +41,10 @@ class PDFDocument {
     }
     
     private func getKey(key: String, from dict: CGPDFDictionaryRef) -> String? {
-        var value: CFString? = nil;
-        var cfValue: CGPDFStringRef? = nil
-        if (CGPDFDictionaryGetString(dict, key, &cfValue!)) {
-            value = CGPDFStringCopyTextString(cfValue!);
-            return value as? String;
+        var value: CFString?
+        var cfValue: CGPDFStringRef = nil
+        if (CGPDFDictionaryGetString(dict, key, &cfValue)), let value = CGPDFStringCopyTextString(cfValue) {
+            return value as String
         }
         return nil
     }
@@ -80,13 +79,13 @@ class PDFDocument {
         self.title = self.getKey("Title", from: dict)
         self.author = self.getKey("Author", from: dict)
         self.creator = self.getKey("Creator", from: dict)
-        self.subject = self.getKey("ModDate", from: dict)
+        self.subject = self.getKey("Subject", from: dict)
         
         if let creationDateString = self.getKey("CreationDate", from: dict) {
             self.creationDate = convertDate(creationDateString)
         }
         
-        if let modifiedDateString = self.getKey("CreationDate", from: dict) {
+        if let modifiedDateString = self.getKey("ModDate", from: dict) {
             self.modifiedDate = convertDate(modifiedDateString)
         }
         
@@ -172,7 +171,7 @@ class PDFDocument {
     }
     
     convenience init? (url: NSURL) {
-        if let data = NSData(contentsOfURL: url){
+        if let data = NSData(contentsOfURL: url) {
             self.init(data: data)
         } else {
             return nil
