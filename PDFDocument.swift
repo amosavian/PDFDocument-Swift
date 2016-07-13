@@ -8,6 +8,13 @@
 
 import Foundation
 import CoreGraphics
+#if os(iOS)
+import UIKit
+typealias PDFDocumentImageClass = UIImage
+#elseif os(OSX)
+import Cocoa
+typealias PDFDocumentImageClass = NSImage
+#endif
 
 class PDFDocument {
     let reference: CGPDFDocumentRef
@@ -41,7 +48,6 @@ class PDFDocument {
     }
     
     private func getKey(key: String, from dict: CGPDFDictionaryRef) -> String? {
-        var value: CFString?
         var cfValue: CGPDFStringRef = nil
         if (CGPDFDictionaryGetString(dict, key, &cfValue)), let value = CGPDFStringCopyTextString(cfValue) {
             return value as String
@@ -233,7 +239,7 @@ class PDFPage {
         CGPDFContextEndPage(context);
     }
     
-    func image(pixelsPerPoint ppp: Int) -> UIImage? {
+    func image(pixelsPerPoint ppp: Int = 1) -> PDFDocumentImageClass? {
         var size = frame.size
         let rect = CGRectMake(0, 0, size.width, size.height)
         size.width  *= CGFloat(ppp)
