@@ -147,17 +147,17 @@ class PDFDocument {
     
     init? (images: [UIImage]) {
         let pdfData = NSMutableData()
-        let pdfConsumer = CGDataConsumerCreateWithCFData(pdfData);
+        guard let pdfConsumer = CGDataConsumerCreateWithCFData(pdfData), let pdfContext = CGPDFContextCreate(pdfConsumer, nil, nil) else {
+            return nil
+        }
         
-        let pdfContext = CGPDFContextCreate(pdfConsumer, nil, nil);
-        
-        for image in images {
+        for image in images where image.CGImage != nil {
             let pageWidth = image.size.width
             let pageHeight = image.size.height
             
             var pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight);
-            CGContextBeginPage(pdfContext,&pageRect);
-            CGContextDrawImage(pdfContext, pageRect, image.CGImage);
+            CGContextBeginPage(pdfContext, &pageRect);
+            CGContextDrawImage(pdfContext, pageRect, image.CGImage!);
             CGContextEndPage(pdfContext);
         }
         
@@ -247,7 +247,9 @@ class PDFPage {
         
         UIGraphicsBeginImageContext(size)
         
-        let context = UIGraphicsGetCurrentContext()
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return nil
+        }
         
         CGContextSaveGState(context)
         let transform = CGPDFPageGetDrawingTransform(reference, CGPDFBox.MediaBox, rect, 0, true)
