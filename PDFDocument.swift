@@ -17,39 +17,39 @@ typealias PDFDocumentImageClass = NSImage
 #endif
 
 class PDFDocument {
-    let reference: CGPDFDocumentRef
-    let data: NSData?
+    let reference: CGPDFDocument
+    let data: Data?
     
     var pagesCount: Int {
-        return CGPDFDocumentGetNumberOfPages(reference)
+        return reference.numberOfPages
     }
     
     var allowsCopying: Bool {
-        return CGPDFDocumentAllowsCopying(reference)
+        return reference.allowsCopying
     }
     
     var allowsPrinting: Bool {
-        return CGPDFDocumentAllowsPrinting(reference)
+        return reference.allowsPrinting
     }
     
     var isEncrypted: Bool {
-        return CGPDFDocumentIsEncrypted(reference)
+        return reference.isEncrypted
     }
     
     var isUnlocked: Bool {
-        return CGPDFDocumentIsUnlocked(reference)
+        return reference.isUnlocked
     }
     
     var version: (major: Int, minor: Int) {
         var majorVersion: Int32 = 0;
         var minorVersion: Int32 = 0;
-        CGPDFDocumentGetVersion(reference, &majorVersion, &minorVersion);
+        reference.getVersion(majorVersion: &majorVersion, minorVersion: &minorVersion);
         return (Int(majorVersion), Int(minorVersion))
     }
     
-    private func getKey(key: String, from dict: CGPDFDictionaryRef) -> String? {
-        var cfValue: CGPDFStringRef = nil
-        if (CGPDFDictionaryGetString(dict, key, &cfValue)), let value = CGPDFStringCopyTextString(cfValue) {
+    fileprivate func getKey(_ key: String, from dict: CGPDFDictionaryRef) -> String? {
+        var cfValue: CGPDFStringRef? = nil
+        if (CGPDFDictionaryGetString(dict, key, &cfValue)), let value = CGPDFStringCopyTextString(cfValue!) {
             return value as String
         }
         return nil
@@ -60,61 +60,61 @@ class PDFDocument {
     var author: String?
     var creator: String?
     var subject: String?
-    var creationDate: NSDate?
-    var modifiedDate: NSDate?
+    var creationDate: Date?
+    var modifiedDate: Date?
     
     dynamic func updateFields() {
-        func convertDate(date: String) -> NSDate? {
+        func convertDate(_ date: String) -> Date? {
             var dateStr = date
             if dateStr.hasPrefix("D:") {
-                dateStr = date.substringFromIndex(date.startIndex.advancedBy(2))
+                dateStr = date.substring(from: date.characters.index(date.startIndex, offsetBy: 2))
             }
-            let dateFormatter = NSDateFormatter()
+            let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyyMMddHHmmssTZD"
-            if let result = dateFormatter.dateFromString(dateStr) {
+            if let result = dateFormatter.date(from: dateStr) {
                 return result
             }
             dateFormatter.dateFormat = "yyyyMMddHHmmss"
-            if let result = dateFormatter.dateFromString(dateStr) {
+            if let result = dateFormatter.date(from: dateStr) {
                 return result
             }
             return nil
         }
         
-        let dict = CGPDFDocumentGetInfo(reference)
-        self.title = self.getKey("Title", from: dict)
-        self.author = self.getKey("Author", from: dict)
-        self.creator = self.getKey("Creator", from: dict)
-        self.subject = self.getKey("Subject", from: dict)
+        let dict = reference.info
+        self.title = self.getKey("Title", from: dict!)
+        self.author = self.getKey("Author", from: dict!)
+        self.creator = self.getKey("Creator", from: dict!)
+        self.subject = self.getKey("Subject", from: dict!)
         
-        if let creationDateString = self.getKey("CreationDate", from: dict) {
+        if let creationDateString = self.getKey("CreationDate", from: dict!) {
             self.creationDate = convertDate(creationDateString)
         }
         
-        if let modifiedDateString = self.getKey("ModDate", from: dict) {
+        if let modifiedDateString = self.getKey("ModDate", from: dict!) {
             self.modifiedDate = convertDate(modifiedDateString)
         }
         
         let pagesCount = self.pagesCount
-        pages.removeAll(keepCapacity: true)
+        pages.removeAll(keepingCapacity: true)
         for i in 1...pagesCount {
-            if let pageRef = CGPDFDocumentGetPage(reference, i) {
+            if let pageRef = reference.page(at: i) {
                 let page = PDFPage(reference: pageRef)
                 pages.append(page)
             }
         }
     }
     
-    func write(url url: NSURL) {
+    func write(url: URL) {
         var infoDict = [String: AnyObject]()
-        infoDict[kCGPDFContextTitle as String] = self.title
-        infoDict[kCGPDFContextAuthor as String] = self.author
-        infoDict[kCGPDFContextCreator as String] = self.creator
-        infoDict[kCGPDFContextSubject as String] = self.subject
+        infoDict[kCGPDFContextTitle as String] = self.title as NSString?
+        infoDict[kCGPDFContextAuthor as String] = self.author as NSString?
+        infoDict[kCGPDFContextCreator as String] = self.creator as NSString?
+        infoDict[kCGPDFContextSubject as String] = self.subject as NSString?
         
         let anyPage = pages.last
-        var rect = anyPage?.frame ?? CGRectZero
-        guard let pdfContext = CGPDFContextCreateWithURL(url, &rect, infoDict) else {
+        var rect = anyPage?.frame ?? CGRect.zero
+        guard let pdfContext = CGContext(url as CFURL, mediaBox: &rect, infoDict as CFDictionary?) else {
             return
         }
         
@@ -123,20 +123,20 @@ class PDFDocument {
         }
     }
     
-    func write(path path: String) {
-        let url = NSURL(fileURLWithPath: path)
+    func write(path: String) {
+        let url = URL(fileURLWithPath: path)
         self.write(url: url)
     }
     
-    init (reference: CGPDFDocumentRef) {
+    init (reference: CGPDFDocument) {
         self.reference = reference
         data = nil
         updateFields()
     }
     
-    init? (data: NSData) {
-        let myPDFData: CFDataRef = data;
-        if let provider = CGDataProviderCreateWithCFData(myPDFData), reference = CGPDFDocumentCreateWithProvider(provider) {
+    init? (data: Data) {
+        let myPDFData: CFData = data as CFData;
+        if let provider = CGDataProvider(data: myPDFData), let reference = CGPDFDocument(provider) {
             self.reference = reference
             self.data = data
             updateFields()
@@ -147,28 +147,28 @@ class PDFDocument {
     
     init? (images: [UIImage]) {
         let pdfData = NSMutableData()
-        guard let pdfConsumer = CGDataConsumerCreateWithCFData(pdfData), let pdfContext = CGPDFContextCreate(pdfConsumer, nil, nil) else {
+        guard let pdfConsumer = CGDataConsumer(data: pdfData), let pdfContext = CGContext(consumer: pdfConsumer, mediaBox: nil, nil) else {
             return nil
         }
         
-        for image in images where image.CGImage != nil {
+        for image in images where image.cgImage != nil {
             let pageWidth = image.size.width
             let pageHeight = image.size.height
             
             var pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight);
-            CGContextBeginPage(pdfContext, &pageRect);
-            CGContextDrawImage(pdfContext, pageRect, image.CGImage!);
-            CGContextEndPage(pdfContext);
+            pdfContext.beginPage(mediaBox: &pageRect);
+            pdfContext.draw(image.cgImage!, in: pageRect);
+            pdfContext.endPage();
         }
         
-        CGPDFContextClose(pdfContext)
+        pdfContext.closePDF()
         
         if pdfData.length == 0 {
             return nil
         }
         
-        self.data = pdfData
-        if let provider = CGDataProviderCreateWithCFData(pdfData), reference = CGPDFDocumentCreateWithProvider(provider) {
+        self.data = pdfData as Data
+        if let provider = CGDataProvider(data: pdfData), let reference = CGPDFDocument(provider) {
             self.reference = reference
             updateFields()
             return
@@ -176,8 +176,8 @@ class PDFDocument {
         return nil
     }
     
-    convenience init? (url: NSURL) {
-        if let data = NSData(contentsOfURL: url) {
+    convenience init? (url: URL) {
+        if let data = try? Data(contentsOf: url as URL) {
             self.init(data: data)
         } else {
             return nil
@@ -185,63 +185,63 @@ class PDFDocument {
     }
     
     convenience init? (path: String) {
-        if let data = NSData(contentsOfFile: path) {
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {
             self.init(data: data)
         } else {
             return nil
         }
     }
     
-    func unlock(password: String) -> Bool {
-        return CGPDFDocumentUnlockWithPassword(reference, (password as NSString).UTF8String)
+    func unlock(_ password: String) -> Bool {
+        return reference.unlockWithPassword((password as NSString).utf8String!)
     }
 }
 
 class PDFPage {
-    let reference: CGPDFPageRef
+    let reference: CGPDFPage
     let pageNumber: Int
     let frame: CGRect
     
-    init(reference: CGPDFPageRef) {
+    init(reference: CGPDFPage) {
         self.reference = reference
-        self.pageNumber = CGPDFPageGetPageNumber(reference);
-        self.frame = CGPDFPageGetBoxRect(reference, CGPDFBox.MediaBox);
+        self.pageNumber = reference.pageNumber;
+        self.frame = reference.getBoxRect(CGPDFBox.mediaBox);
     }
     
     var size: CGSize {
         return frame.size
     }
     
-    func draw(pdfContext context: CGContextRef) {
+    func draw(pdfContext context: CGContext) {
         let size = frame.size
-        var rect = CGRectMake(0, 0, size.width, size.height)
-        let boxData = NSData(bytes: &rect, length: sizeofValue(rect))
+        var rect = CGRect(x: 0, y: 0, width: size.width, height: size.height)
+        var rBuf = UnsafeMutableBufferPointer(start: &rect, count: 1)
+        let boxData = NSData(&rBuf, length: MemoryLayout.size(ofValue: rect))
         let pageDict = [kCGPDFContextMediaBox as String : boxData]
         
-        CGPDFContextBeginPage(context, pageDict);
-        CGContextDrawPDFPage(context, reference);
-        CGPDFContextEndPage(context);
+        context.beginPDFPage(pageDict as CFDictionary?);
+        context.drawPDFPage(reference);
+        context.endPDFPage();
     }
     
-    func draw(context context: CGContextRef, atSize drawSize: CGSize) {
+    func draw(context: CGContext, atSize drawSize: CGSize) {
         // Flip coordinates
-        CGContextGetCTM(context);
-        CGContextScaleCTM(context, 1, -1);
-        CGContextTranslateCTM(context, 0, -drawSize.height);
+        context.scaleBy(x: 1, y: -1);
+        context.translateBy(x: 0, y: -drawSize.height);
         
         // get the rectangle of the cropped inside
-        let mediaRect = CGPDFPageGetBoxRect(reference, CGPDFBox.CropBox);
-        CGContextScaleCTM(context, drawSize.width / mediaRect.size.width,
-                          drawSize.height / mediaRect.size.height);
-        CGContextTranslateCTM(context, -mediaRect.origin.x, -mediaRect.origin.y);
+        let mediaRect = reference.getBoxRect(CGPDFBox.cropBox);
+        context.scaleBy(x: drawSize.width / mediaRect.size.width,
+                          y: drawSize.height / mediaRect.size.height);
+        context.translateBy(x: -mediaRect.origin.x, y: -mediaRect.origin.y);
         
-        CGContextDrawPDFPage(context, reference);
-        CGPDFContextEndPage(context);
+        context.drawPDFPage(reference);
+        context.endPDFPage();
     }
     
     func image(pixelsPerPoint ppp: Int = 1) -> PDFDocumentImageClass? {
         var size = frame.size
-        let rect = CGRectMake(0, 0, size.width, size.height)
+        let rect = CGRect(x: 0, y: 0, width: size.width, height: size.height)
         size.width  *= CGFloat(ppp)
         size.height *= CGFloat(ppp)
         
@@ -251,15 +251,15 @@ class PDFPage {
             return nil
         }
         
-        CGContextSaveGState(context)
-        let transform = CGPDFPageGetDrawingTransform(reference, CGPDFBox.MediaBox, rect, 0, true)
-        CGContextConcatCTM(context, transform)
+        context.saveGState()
+        let transform = reference.getDrawingTransform(CGPDFBox.mediaBox, rect: rect, rotate: 0, preserveAspectRatio: true)
+        context.concatenate(transform)
         
-        CGContextTranslateCTM(context, 0, size.height)
-        CGContextScaleCTM(context, CGFloat(ppp), CGFloat(-ppp))
-        CGContextDrawPDFPage(context, reference);
+        context.translateBy(x: 0, y: size.height)
+        context.scaleBy(x: CGFloat(ppp), y: CGFloat(-ppp))
+        context.drawPDFPage(reference);
         
-        CGContextRestoreGState(context);
+        context.restoreGState();
         
         let resultingImage = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
