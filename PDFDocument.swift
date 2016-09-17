@@ -107,10 +107,10 @@ class PDFDocument {
     
     func write(url: URL) {
         var infoDict = [String: AnyObject]()
-        infoDict[kCGPDFContextTitle as String] = self.title as AnyObject?
-        infoDict[kCGPDFContextAuthor as String] = self.author as AnyObject?
-        infoDict[kCGPDFContextCreator as String] = self.creator as AnyObject?
-        infoDict[kCGPDFContextSubject as String] = self.subject as AnyObject?
+        infoDict[kCGPDFContextTitle as String] = self.title as NSString?
+        infoDict[kCGPDFContextAuthor as String] = self.author as NSString?
+        infoDict[kCGPDFContextCreator as String] = self.creator as NSString?
+        infoDict[kCGPDFContextSubject as String] = self.subject as NSString?
         
         let anyPage = pages.last
         var rect = anyPage?.frame ?? CGRect.zero
