@@ -81,17 +81,17 @@ class PDFDocument {
             return nil
         }
         
-        let dict = reference.info
-        self.title = self.getKey("Title", from: dict!)
-        self.author = self.getKey("Author", from: dict!)
-        self.creator = self.getKey("Creator", from: dict!)
-        self.subject = self.getKey("Subject", from: dict!)
+        guard let dict = reference.info else { return }
+        self.title = self.getKey("Title", from: dict)
+        self.author = self.getKey("Author", from: dict)
+        self.creator = self.getKey("Creator", from: dict)
+        self.subject = self.getKey("Subject", from: dict)
         
-        if let creationDateString = self.getKey("CreationDate", from: dict!) {
+        if let creationDateString = self.getKey("CreationDate", from: dict) {
             self.creationDate = convertDate(creationDateString)
         }
         
-        if let modifiedDateString = self.getKey("ModDate", from: dict!) {
+        if let modifiedDateString = self.getKey("ModDate", from: dict) {
             self.modifiedDate = convertDate(modifiedDateString)
         }
         
