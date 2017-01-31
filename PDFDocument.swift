@@ -177,7 +177,7 @@ class PDFDocument {
     }
     
     convenience init? (url: URL) {
-        if let data = try? Data(contentsOf: url as URL) {
+        if let data = try? Data(contentsOf: url) {
             self.init(data: data)
         } else {
             return nil
