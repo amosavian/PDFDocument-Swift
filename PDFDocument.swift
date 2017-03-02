@@ -177,19 +177,15 @@ class PDFDocument {
     }
     
     convenience init? (url: URL) {
-        if let data = try? Data(contentsOf: url) {
-            self.init(data: data)
-        } else {
-            return nil
+        if let reference = CGPDFDocument(url as CFURL) {
+            self.init(reference: reference)
+            return
         }
+        return nil
     }
     
     convenience init? (path: String) {
-        if let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {
-            self.init(data: data)
-        } else {
-            return nil
-        }
+        self.init(url: URL(fileURLWithPath: path))
     }
     
     func unlock(_ password: String) -> Bool {
